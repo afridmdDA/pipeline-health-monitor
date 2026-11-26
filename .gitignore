@@ -1,0 +1,9 @@
+# Generated demo data and run outputs — not committed.
+__pycache__/
+*.pyc
+demo/data/
+demo/config.json
+demo/baseline.json
+demo/metadata.json
+reports/
+alerts.log

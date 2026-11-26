@@ -1,0 +1,29 @@
+{
+  "metadata_path": "/home/hatch/workspace/projects/pipeline-health-monitor/demo/metadata.json",
+  "tables": [
+    {
+      "name": "orders",
+      "source": {
+        "type": "sqlite",
+        "path": "/home/hatch/workspace/projects/pipeline-health-monitor/demo/data/pipeline.db"
+      },
+      "expected_interval_hours": 24
+    },
+    {
+      "name": "customers",
+      "source": {
+        "type": "sqlite",
+        "path": "/home/hatch/workspace/projects/pipeline-health-monitor/demo/data/pipeline.db"
+      },
+      "expected_interval_hours": 24
+    },
+    {
+      "name": "products",
+      "source": {
+        "type": "csv",
+        "path": "/home/hatch/workspace/projects/pipeline-health-monitor/demo/data/products.csv"
+      },
+      "expected_interval_hours": 24
+    }
+  ]
+}
