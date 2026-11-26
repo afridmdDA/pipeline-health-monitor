@@ -7,7 +7,6 @@ demo-verified — no fake metrics, no production claims.
 
 ## Backlog
 
-- [ ] Email alert output — send the report summary by email (SMTP via stdlib) when a check fails
 - [ ] Per-table thresholds in config.json — freshness window and null-rate limit set per table instead of global defaults
 - [ ] `check` CLI command — run checks for a single table instead of the whole config
 - [ ] Row-count trend in the report — show the last 7 runs of row counts next to the current value
@@ -20,4 +19,4 @@ demo-verified — no fake metrics, no production claims.
 
 ## Shipped
 
-- (none yet — first feature ships Wednesday, Dec 2, 2026)
+- 2026-11-26 — Email alert output: run with findings sends the plain-English summary by email (SMTP via stdlib); skipped gracefully when unconfigured.

@@ -46,13 +46,15 @@ pipeline-health-monitor/
 │   ├── checks.py      # pure check functions (freshness, row count, nulls, schema, drift)
 │   ├── monitor.py     # loads tables, runs checks, writes reports
 │   ├── explain.py     # optional LLM rewrite of explanations (OpenAI, stdlib only)
+│   ├── email_alerts.py  # optional email alert output (SMTP, stdlib only)
 │   └── cli.py         # `run` and `baseline` commands
 ├── demo/
 │   ├── generate_data.py  # builds sample orders/customers/products tables
 │   ├── inject_faults.py  # injects a stale table, a schema change, a null spike
 │   └── run_demo.sh       # end-to-end demo with verification
 ├── tests/
-│   └── test_checks.py    # unit tests for the check functions (unittest, no extra deps)
+│   ├── test_checks.py    # unit tests for the check functions (unittest, no extra deps)
+│   └── test_email_alerts.py  # unit tests for the email output (fake SMTP, no network)
 ├── requirements.txt   # pandas only
 └── README.md
 ```
@@ -68,6 +70,12 @@ Design choices:
   baseline and returns a finding — easy to test, easy to extend.
 - **Three outputs.** A console summary, a markdown report, and a
   JSON-lines alerts log (one line per finding, append-only).
+- **Optional email alerts.** When an `email` block is present and
+  enabled in `config.json`, a run with at least one finding also sends
+  the plain-English summary by email (stdlib `smtplib`, password from
+  an env var, never from the config file). Without it, the monitor
+  runs exactly as before — email is never required and a failed send
+  never breaks a run.
 - **Optional AI explanations.** If `OPENAI_API_KEY` is set, the
   `--enhance` flag asks an LLM to rewrite each explanation in shorter,
   manager-friendly language. Without a key the tool works fully on its
@@ -90,7 +98,13 @@ python -m pipeline_health_monitor.cli run \
 
 # Exit code is 1 when a critical finding exists, 0 otherwise.
 
-# 3. (Optional) friendlier explanations via OpenAI
+# 3. (Optional) email the summary when a run finds problems.
+#    Add an "email" block to config.json (see "Config format" below)
+#    and export the SMTP password — the run sends one plain-text
+#    email per failing run and prints "Email alert sent to ...".
+#    With no email block, the run above works exactly as before.
+
+# 4. (Optional) friendlier explanations via OpenAI
 export OPENAI_API_KEY=sk-...
 python -m pipeline_health_monitor.cli run --config demo/config.json \
     --baseline demo/baseline.json --enhance
@@ -125,6 +139,42 @@ with `pip install -e .` (no `setup.py` is included yet — the demo uses
 `metadata.json` maps each table to the ISO timestamp of its last update
 — written by whatever loads the tables. The freshness check compares it
 against `expected_interval_hours`.
+
+### Email alerts (optional)
+
+Add an `email` block to `config.json`. It is only read when `enabled`
+is `true`; the password is never stored in the file — set the env var
+named by `password_env` before running:
+
+```json
+{
+  "email": {
+    "enabled": true,
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "use_tls": true,
+    "user": "alerts@example.com",
+    "password_env": "PIPELINE_SMTP_PASSWORD",
+    "from": "alerts@example.com",
+    "to": ["data-team@example.com", "oncall@example.com"]
+  }
+}
+```
+
+```bash
+export PIPELINE_SMTP_PASSWORD='...'
+```
+
+- An email is sent only when the run finds at least one problem;
+  healthy runs send nothing.
+- The subject is a one-line count (`Pipeline Health Monitor:
+  4 problem(s) - 3 critical, 1 warning`); the body is the same
+  plain-English summary the console shows.
+- `use_tls` is STARTTLS (port 587). For implicit SSL (port 465) set
+  `"use_ssl": true` instead. `to` accepts one address or a list.
+- A failed send (wrong credentials, unreachable server, missing
+  password env var) prints a warning on stderr and the run continues
+  normally — the exit code and the report are unaffected.
 
 ## Demo
 
@@ -171,7 +221,9 @@ python -m unittest discover -s tests -v
 ```
 
 14 unit tests cover the five check functions and the snapshot builder.
-They use only the standard library.
+23 more cover the email output (formatting, config parsing, sending
+via a fake SMTP class, and the Monitor wiring). They use only the
+standard library.
 
 ## What this is not
 

@@ -49,6 +49,11 @@ def main(argv: list[str] | None = None) -> int:
     if findings:
         log = monitor.write_alerts_log(args.alerts)
         print(f"Alerts appended to {log}")
+        # Only sends when findings exist and email is configured;
+        # silently skipped otherwise (see email_alerts.py).
+        if monitor.send_email_alert():
+            recipients = ", ".join(monitor.email_settings.recipients)
+            print(f"Email alert sent to {recipients}")
     return 1 if any(f.severity == "critical" for f in findings) else 0
 
 

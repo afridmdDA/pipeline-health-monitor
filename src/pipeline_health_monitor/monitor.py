@@ -11,6 +11,7 @@ from typing import Optional
 
 import pandas as pd
 
+from . import email_alerts
 from .checks import (
     Finding,
     check_freshness,
@@ -20,6 +21,7 @@ from .checks import (
     check_value_drift,
     snapshot_table,
 )
+from .email_alerts import email_settings_from_config
 from .explain import enhance_explanation
 
 
@@ -34,6 +36,9 @@ class Monitor:
         self.baseline = json.loads(self.baseline_path.read_text())
         self.findings: list[Finding] = []
         self.checked: list[str] = []
+        # None when the config has no (enabled) "email" block — the
+        # monitor then runs exactly as before and never sends email.
+        self.email_settings = email_settings_from_config(self.config)
 
     # -- data loading -------------------------------------------------
     def load_table(self, table_cfg: dict) -> pd.DataFrame:
@@ -200,6 +205,18 @@ class Monitor:
                 record["timestamp"] = datetime.now().isoformat(timespec="seconds")
                 fh.write(json.dumps(record) + "\n")
         return out_path
+
+    def send_email_alert(self, smtp_class=None) -> bool:
+        """Send the findings summary by email when configured.
+
+        Returns True only when an email was actually sent. Returns False
+        (silently) when there are no findings or email is not configured,
+        and False with a stderr warning when sending fails. ``smtp_class``
+        is injectable so tests can verify sending without a real server.
+        """
+        return email_alerts.send_email_alert(
+            self.findings, self.checked, self.email_settings, smtp_class=smtp_class
+        )
 
 
 def build_baseline(config_path: str | Path, baseline_path: str | Path) -> Path:
